@@ -1,0 +1,10 @@
+[project]
+name = "agile-ai"
+version = "0.1.0"
+description = "AI-powered Agile & DevOps insights. Ingests Jira, GitHub, and more to enable GPT-driven Agile analytics and productivity insights."
+requires-python = ">=3.11"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
