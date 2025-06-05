@@ -2,8 +2,15 @@
 name = "agile-ai"
 version = "0.1.0"
 description = "AI-powered Agile & DevOps insights. Ingests Jira, GitHub, and more to enable GPT-driven Agile analytics and productivity insights."
-requires-python = ">=3.11"
-dependencies = []
+requires-python = ">=3.13"
+dependencies = [
+    "dlt[duckdb,jira,motherduck]>=1.11.0",
+    "python-dotenv>=1.1.0",
+    "pyyaml>=6.0.2",
+]
+
+[project.scripts]
+extract-jira = "agile_ai.jira_extraction:main"
 
 [build-system]
 requires = ["hatchling"]
