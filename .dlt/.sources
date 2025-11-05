@@ -1,0 +1,20 @@
+engine_version: 1
+sources:
+  jira:
+    is_dirty: false
+    last_commit_sha: 78525b57305b559eff7f7bffe4fa68fd1e5df43a
+    last_commit_timestamp: '2025-10-24T16:36:34+02:00'
+    files:
+      jira/__init__.py:
+        commit_sha: 78525b57305b559eff7f7bffe4fa68fd1e5df43a
+        git_sha: 5538cec764a6ca055377b1c608f72508047cc78b
+        sha3_256: 176c86ecc35f8d4f045adce034792e2785abd5f8c9d4f6abe52ce413686923dc
+      jira/README.md:
+        commit_sha: 78525b57305b559eff7f7bffe4fa68fd1e5df43a
+        git_sha: 50c3cb68730e82627451f090272bfeaf1fb545d4
+        sha3_256: 3563ebf9acd343d4b66ad562336cbbe125dbc5eee29f8dbe9363b5659d907b67
+      jira/settings.py:
+        commit_sha: 78525b57305b559eff7f7bffe4fa68fd1e5df43a
+        git_sha: aee105908a485dadcecda1030a7ccdefc8d89642
+        sha3_256: 3857b7dd8c406bb57ba86f2d1649254790373e61dfe7c497dcbb6a556a0a5104
+    dlt_version_constraint: '>=0.5.1'

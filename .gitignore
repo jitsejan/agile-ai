@@ -32,3 +32,5 @@ _local
 jira_pipeline.duckdb
 uv.lock
 .DS_Store
+
+.idea/
