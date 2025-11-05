@@ -34,3 +34,7 @@ uv.lock
 .DS_Store
 
 .idea/
+logs/dbt.log
+transform/logs
+transform/target
+transform/.user.yml
