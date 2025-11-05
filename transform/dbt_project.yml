@@ -1,0 +1,14 @@
+name: 'transform'
+version: '1.0'
+config-version: 2
+
+profile: 'jira_duckdb'
+
+model-paths: ['models']
+
+models:
+  transform:
+    silver:
+      +materialized: view
+    gold:
+      +materialized: table

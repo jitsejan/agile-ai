@@ -1,0 +1,9 @@
+jira_duckdb:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DBT_DUCKDB_PATH', 'jira_pipeline.duckdb') }}"
+      threads: 1
+      schema: jira
+      database: jira_pipeline
