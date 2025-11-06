@@ -10,8 +10,8 @@ with sprint_issues as (
         i.status,
         i.completed_at,
         case when i.completed_at is not null then 1 else 0 end as completed_flag
-    from {{ ref('silver_issues') }} i
-    join {{ ref('silver_sprints') }} s
+    from {{ ref('issues') }} i
+    join {{ ref('sprints') }} s
       on cast(i.sprint_raw as varchar) like '%' || cast(s.sprint_id as varchar) || '%'
 )
 select

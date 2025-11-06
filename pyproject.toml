@@ -5,7 +5,8 @@ description = "AI-powered Agile & DevOps insights."
 requires-python = ">=3.11"
 dependencies = [
     "dbt-duckdb>=1.9.6",
-    "dlt[duckdb]>=0.5.1",
+    "dlt[duckdb,motherduck,parquet]>=0.5.1",
+    "duckdb>=1.4.1",
     "requests>=2.31",
 ]
 

@@ -8,5 +8,5 @@ select
     created_at,
     completed_at,
     datediff('day', created_at, coalesce(completed_at, current_timestamp)) as days_in_status
-from {{ ref('silver_issues') }}
+from {{ ref('issues') }}
 order by days_in_status desc

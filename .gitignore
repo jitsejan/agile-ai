@@ -38,3 +38,4 @@ logs/dbt.log
 transform/logs
 transform/target
 transform/.user.yml
+dashboards/.evidence/customization/.profile.json

@@ -2,37 +2,9 @@ version: 2
 
 sources:
   - name: jira
-    database: jira_pipeline
-    schema: jira
+    schema: raw
     tables:
       - name: issues
       - name: all_sprints
-
-models:
-  - name: silver_issues
-    description: Cleaned Jira issues
-    columns:
-      - name: issue_id
-        tests: [not_null]
-      - name: issue_key
-        tests: [not_null]
-  - name: silver_sprints
-    description: Cleaned Jira sprints
-    columns:
-      - name: sprint_id
-        tests: [not_null]
-  - name: gold_sprint_velocity
-    description: Sprint velocity per sprint
-    columns:
-      - name: sprint_id
-        tests: [not_null]
-  - name: gold_user_insights
-    description: User insights (assigned, resolved)
-    columns:
-      - name: assignee
-        tests: [not_null]
-  - name: gold_ticket_aging
-    description: Aging open tickets
-    columns:
-      - name: issue_id
-        tests: [not_null]
+      - name: issue_comments
+      - name: issue_histories

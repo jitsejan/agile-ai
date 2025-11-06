@@ -9,6 +9,8 @@ model-paths: ['models']
 models:
   transform:
     silver:
+      +schema: silver
       +materialized: view
     gold:
+      +schema: gold
       +materialized: table
