@@ -1,6 +1,12 @@
 -- Gold model: Track tickets that moved between sprints (carryover/spillover)
 -- Helps identify estimation issues and scope creep
-with issue_sprint_changes as (
+-- Filtered to board_id = 70 (Data Team Board) sprints
+with board_70_sprints as (
+    select distinct sprint_name
+    from {{ ref('sprints') }}
+    where board_id = 70
+),
+issue_sprint_changes as (
     select
         h.issue_id,
         h.issue_key,
@@ -12,6 +18,9 @@ with issue_sprint_changes as (
     where h.field = 'Sprint'
         and h.from_string is not null
         and h.to_string is not null
+        -- Filter to only include changes involving board 70 sprints
+        and (h.to_string in (select sprint_name from board_70_sprints)
+             or h.from_string in (select sprint_name from board_70_sprints))
 ),
 issue_details as (
     select

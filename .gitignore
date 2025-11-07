@@ -39,3 +39,5 @@ transform/logs
 transform/target
 transform/.user.yml
 dashboards/.evidence/customization/.profile.json
+dashboards/pages/logs
+dashboards/sources/motherduck/connection.yaml

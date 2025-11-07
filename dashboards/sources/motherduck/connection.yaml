@@ -1,6 +1,0 @@
-name: motherduck
-type: motherduck
-options:
-  database: agile_ai_db
-  schema: gold
-  tokenEnvVar: MOTHERDUCK_TOKEN

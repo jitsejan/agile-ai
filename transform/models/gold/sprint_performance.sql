@@ -1,9 +1,11 @@
 -- Gold model: Comprehensive sprint performance metrics
 -- Tracks story points, completion rates, and sprint health
+-- Filtered to board_id = 70 (Data Team Board)
 with sprint_issues as (
     select
         s.sprint_id,
         s.sprint_name,
+        s.board_id,
         s.start_date,
         s.end_date,
         s.sprint_state,
@@ -23,13 +25,15 @@ with sprint_issues as (
             then 1
             else 0
         end as completed_in_sprint_flag
-    from {{ ref('issues') }} i
-    join {{ ref('sprints') }} s
+    from {{ ref('sprints') }} s
+    left join {{ ref('issues') }} i
       on cast(i.sprint_raw as varchar) like '%' || cast(s.sprint_id as varchar) || '%'
+    where s.board_id = 70
 )
 select
     sprint_id,
     sprint_name,
+    board_id,
     start_date,
     end_date,
     sprint_state,
@@ -46,5 +50,5 @@ select
     round(coalesce(sum(case when completed_flag = 1 then story_points end), 0) * 100.0 / nullif(sum(story_points), 0), 2) as points_completion_rate_pct,
     count(distinct assignee) as team_members_active
 from sprint_issues
-group by 1,2,3,4,5
+group by 1,2,3,4,5,6
 order by start_date desc

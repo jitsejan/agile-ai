@@ -1,3 +1,4 @@
+-- Data is already filtered to board_id = 70 (Data Team Board) in the gold layer
 select
     sprint_name,
     start_date,
