@@ -26,6 +26,12 @@ else:
     logger.setLevel(logging.INFO)
 
 
+def clean_dict(d):
+    """Remove None values from dictionary recursively."""
+    if isinstance(d, dict):
+        return {k: clean_dict(v) for k, v in d.items() if v is not None}
+    return d
+
 
 @dlt.source(max_table_nesting=1)
 def jira(
@@ -321,312 +327,100 @@ def get_paginated_data(
     data_path: Optional[str],
     params: Optional[DictStrAny],
 ) -> Iterable[TDataItem]:
+    """
+    Fetch paginated data from Jira API.
+
+    Supports both POST-based (search/jql) and GET-based endpoints.
+    """
     url = f"https://{subdomain}.atlassian.net/{api_path}"
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
     auth = (email, api_token)
     params = {} if params is None else params
-    # Use Jira Cloud's typical pagination for the search/jql endpoint which
-    # expects `startAt` and `maxResults` in the POST body. The previous
-    # implementation used `pageToken`/`nextPageToken` which doesn't match the
-    # Jira REST API and caused 400 responses.
+
     if api_path.endswith("/search/jql"):
-        start_at = 0
-        # helper to mask Authorization header when printing diagnostics
-        def _mask_headers(hdrs: dict) -> dict:
-            if not hdrs:
-                return {}
-            masked = {}
-            for k, v in hdrs.items():
-                if k.lower() == "authorization":
-                    masked[k] = "*****MASKED*****"
-                else:
-                    masked[k] = v
-            return masked
-        # Try a few payload shapes to be compatible with tenant-specific
-        # expectations for the /search/jql endpoint. We attempt variants in
-        # order until one succeeds.
+        # POST-based pagination for search/jql endpoint
+        # This endpoint uses token-based pagination with nextPageToken
+
+        # Extract request parameters
+        jql = params.get("jql", "")
+        fields = params.get("fields") or []
+        expand = params.get("expand")
+
+        # Normalize expand to comma-separated string
+        expand_str = None
+        if expand:
+            expand_str = ",".join(expand) if isinstance(expand, (list, tuple)) else expand
+
+        # Build base payload (don't include maxResults - let API use default per page)
+        payload = {"jql": jql, "fields": fields}
+        if expand_str:
+            payload["expand"] = expand_str
+
+        # Paginate through all results using token-based pagination
+        next_page_token = None
+        page_num = 0
+
         while True:
-            jql = params.get("jql", "")
-            fields = params.get("fields") or []
-            expand = params.get("expand")
-            # normalize expand to a comma-separated string if it's a list
-            if isinstance(expand, (list, tuple)):
-                expand_str = ",".join(expand)
-            else:
-                expand_str = expand
-            # Don't default to page_size - if maxResults isn't in params, leave it None
-            # so clean_dict will remove it from API requests (allowing proper pagination)
-            max_results = params.get("maxResults", None)
+            page_num += 1
 
-            # Helper to clean None values from dict (don't send them to API)
-            def clean_dict(d):
-                if isinstance(d, dict):
-                    return {k: clean_dict(v) for k, v in d.items() if v is not None}
-                return d
+            # Add pagination token if we have one (for pages after the first)
+            if next_page_token:
+                payload["nextPageToken"] = next_page_token
 
-            payload_candidates = [
-                # Bruno's working shape: jql + fields + maxResults (include maxResults to avoid JIRA default of 50)
-                {**({"jql": jql, "fields": fields, "maxResults": max_results} if not expand_str else {"jql": jql, "fields": fields, "maxResults": max_results, "expand": expand_str})},
-                # v1: simple shape (jql, fields list, startAt/maxResults)
-                {**({"jql": jql, "fields": fields, "startAt": start_at, "maxResults": max_results} if not expand_str else {"jql": jql, "fields": fields, "startAt": start_at, "maxResults": max_results, "expand": expand_str})},
-                # v2: nested query object
-                {**({"query": {"jql": jql, "fields": fields}, "startAt": start_at, "maxResults": max_results} if not expand_str else {"query": {"jql": jql, "fields": fields}, "startAt": start_at, "maxResults": max_results, "expand": expand_str})},
-                # v3: nested query + separate fields key
-                {**({"query": {"jql": jql}, "fields": fields, "startAt": start_at, "maxResults": max_results} if not expand_str else {"query": {"jql": jql}, "fields": fields, "startAt": start_at, "maxResults": max_results, "expand": expand_str})},
-                # v4: fields as comma-separated string
-                {**({"jql": jql, "fields": ",".join(fields) if fields else [], "startAt": start_at, "maxResults": max_results} if not expand_str else {"jql": jql, "fields": ",".join(fields) if fields else [], "startAt": start_at, "maxResults": max_results, "expand": expand_str})},
-                # v5: nested page object
-                {**({"query": {"jql": jql}, "fields": fields, "page": {"startAt": start_at, "maxResults": max_results}} if not expand_str else {"query": {"jql": jql}, "fields": fields, "page": {"startAt": start_at, "maxResults": max_results}, "expand": expand_str})},
-                # v6: nested query with paging inside
-                {**({"query": {"jql": jql, "startAt": start_at, "maxResults": max_results}, "fields": fields} if not expand_str else {"query": {"jql": jql, "startAt": start_at, "maxResults": max_results}, "fields": fields, "expand": expand_str})},
-                # v7: use 'limit' instead of maxResults
-                {**({"jql": jql, "fields": fields, "startAt": start_at, "limit": max_results} if not expand_str else {"jql": jql, "fields": fields, "startAt": start_at, "limit": max_results, "expand": expand_str})},
-                # v8: query/jql as nested and fields as comma string
-                {**({"query": {"jql": jql}, "fields": ",".join(fields) if fields else [], "startAt": start_at, "maxResults": max_results} if not expand_str else {"query": {"jql": jql}, "fields": ",".join(fields) if fields else [], "startAt": start_at, "maxResults": max_results, "expand": expand_str})},
-            ]
+            # Make request
+            response = requests.post(url, auth=auth, headers=headers, json=clean_dict(payload))
+            response.raise_for_status()
+            data = response.json()
 
-            success = False
-            last_exception = None
-            for payload in payload_candidates:
-                try:
-                    # Clean None values from payload before sending
-                    clean_payload = clean_dict(payload)
-                    response = requests.post(url, auth=auth, headers=headers, json=clean_payload)
-
-                    # Try to extract the prepared request to print diagnostics
-                    req = getattr(response, "request", None)
-                    if req is not None:
-                        try:
-                            req_headers = dict(req.headers)
-                        except Exception:
-                            req_headers = {}
-                        masked_req_headers = _mask_headers(req_headers)
-                        req_body = getattr(req, "body", None)
-                        # If body is bytes, try to decode for readability
-                        if isinstance(req_body, (bytes, bytearray)):
-                            try:
-                                req_body = req_body.decode("utf-8")
-                            except Exception:
-                                req_body = str(req_body)
-
-                        logger.debug("REQUEST -> %s %s", req.method if hasattr(req, 'method') else "POST", req.url if hasattr(req, 'url') else url)
-                        logger.debug("REQUEST HEADERS -> %s", masked_req_headers)
-                        logger.debug("REQUEST BODY -> %s", req_body if req_body is not None else clean_payload)
-
-                    # Raise for status so we consistently handle non-2xx responses
-                    response.raise_for_status()
-                    data = response.json()
-                    success = True
-                    break
-                except Exception as ex:
-                    # Log attempt and reason, then try next candidate.
-                    resp = getattr(ex, "response", None)
-                    resp_text = None
-                    status = None
-                    try:
-                        if resp is not None:
-                            status = resp.status_code
-                            resp_text = resp.text
-                    except Exception:
-                        resp_text = "<no response body>"
-
-                    # Attempt to get request from response or from the exception
-                    sent_req = None
-                    if resp is not None:
-                        sent_req = getattr(resp, "request", None)
-                    if sent_req is None:
-                        sent_req = getattr(ex, "request", None)
-
-                    if sent_req is not None:
-                        try:
-                            sent_headers = dict(sent_req.headers)
-                        except Exception:
-                            sent_headers = {}
-                        masked_sent_headers = _mask_headers(sent_headers)
-                        sent_body = getattr(sent_req, "body", None)
-                        if isinstance(sent_body, (bytes, bytearray)):
-                            try:
-                                sent_body = sent_body.decode("utf-8")
-                            except Exception:
-                                sent_body = str(sent_body)
-                        logger.debug("TRIED PAYLOAD -> %s", clean_payload)
-                        logger.debug("SENT REQUEST HEADERS -> %s", masked_sent_headers)
-                        logger.debug("SENT REQUEST BODY -> %s", sent_body if sent_body is not None else clean_payload)
-                    else:
-                        logger.debug("TRIED PAYLOAD -> %s", clean_payload)
-
-                    logger.debug("RESPONSE STATUS -> %s", status)
-                    logger.debug("RESPONSE BODY -> %s", resp_text if resp_text is not None else "<no response body>")
-                    last_exception = ex
-                    continue
-
-            if not success:
-                # Re-raise the last encountered exception so callers see the error
-                if last_exception is not None:
-                    raise last_exception
-                break
-
-            # Process the successful response. The Bruno-compatible shape
-            # (jql + fields) may return paged results. We'll yield the
-            # returned issues and, if `total` indicates more pages, we'll
-            # fetch them by sending startAt/maxResults as query params on
-            # subsequent POSTs (keeping the JSON body minimal). This avoids
-            # the tenant rejecting startAt when present inside the JSON body.
+            # Extract and yield issues
             issues = data.get("issues") or []
             if not issues:
+                logger.info(f"Page {page_num}: No issues returned, stopping pagination")
                 break
 
-            # Yield the list of issues for this page
+            logger.info(f"Page {page_num}: Fetched {len(issues)} issues")
             yield issues
 
-            # Pagination: determine if there are more issues to fetch
-            fetched = len(issues)
-            total = data.get("total")
-            start_at_response = data.get("startAt", 0)
+            # Check if this is the last page
+            if data.get("isLast", False):
+                logger.info(f"Page {page_num}: isLast=true, stopping pagination")
+                break
+
+            # Get token for next page
             next_page_token = data.get("nextPageToken")
-
-            logger.info(f"Pagination: fetched={fetched}, total={total}, startAt={start_at_response}, nextPageToken={next_page_token}")
-
-            # If no issues fetched, stop
-            if fetched == 0:
-                logger.info("Stopping pagination: no issues fetched")
+            if not next_page_token:
+                logger.info(f"Page {page_num}: No nextPageToken, stopping pagination")
                 break
 
-            # Check if we should continue pagination
-            # Some APIs use nextPageToken, others use startAt/total
-            next_start = 0  # Initialize for offset-based pagination
-            should_continue = False
-
-            if next_page_token:
-                # Token-based pagination - always continue if we have a token
-                should_continue = True
-                logger.info(f"Token-based pagination: nextPageToken={next_page_token}")
-            elif total is not None:
-                # Offset-based pagination
-                start_at = int(start_at_response)
-                next_start = start_at + fetched
-                logger.info(f"Offset-based pagination: start_at={start_at}, next_start={next_start}, total={total}")
-
-                if next_start >= int(total):
-                    logger.info(f"Stopping pagination: next_start ({next_start}) >= total ({total})")
-                    break
-                should_continue = True
-            else:
-                logger.info(f"No pagination info available - stopping")
-                break
-
-            if not should_continue:
-                break
-
-            # Fetch subsequent pages
-            logger.info(f"Starting pagination loop: token={next_page_token}, has_total={total is not None}")
-            while next_page_token or (next_page_token is None and next_start < int(total)):
-                # Prepare a minimal body (Bruno shape). Include maxResults to avoid JIRA default of 50.
-                # Include expand if requested.
-                page_body = {"jql": jql, "fields": fields, "maxResults": max_results}
-                if expand_str:
-                    page_body["expand"] = expand_str
-
-                # Check if using token-based or offset-based pagination
-                if next_page_token:
-                    # Token-based pagination: include nextPageToken in body
-                    page_body["nextPageToken"] = next_page_token
-                    page_params = {}
-                    if expand_str:
-                        page_params["expand"] = expand_str
-                    logger.info(f"Using token-based pagination with nextPageToken={next_page_token}")
-                else:
-                    # Offset-based pagination: use query params for startAt/maxResults
-                    page_params = {"startAt": next_start, "maxResults": max_results}
-                    if expand_str:
-                        page_params["expand"] = expand_str
-                    logger.info(f"Using offset-based pagination with startAt={next_start}")
-
-                # Clean None values from body and params
-                clean_page_body = clean_dict(page_body)
-                clean_page_params = clean_dict(page_params)
-
-                try:
-                    resp = requests.post(url, auth=auth, headers=headers, params=clean_page_params, json=clean_page_body)
-                    # expose prepared request diagnostics when debug is present
-                    req = getattr(resp, "request", None)
-                    if req is not None:
-                        try:
-                            req_headers = dict(req.headers)
-                        except Exception:
-                            req_headers = {}
-                        masked_req_headers = _mask_headers(req_headers)
-                        req_body = getattr(req, "body", None)
-                        if isinstance(req_body, (bytes, bytearray)):
-                            try:
-                                req_body = req_body.decode("utf-8")
-                            except Exception:
-                                req_body = str(req_body)
-                        logger.debug("PAGED REQUEST -> %s %s", req.method if hasattr(req, 'method') else "POST", req.url if hasattr(req, 'url') else url)
-                        logger.debug("PAGED REQUEST HEADERS -> %s", masked_req_headers)
-                        logger.debug("PAGED REQUEST BODY -> %s", req_body if req_body is not None else clean_page_body)
-
-                    resp.raise_for_status()
-                except Exception as ex:
-                    # Try a fallback: some tenants do accept startAt/maxResults
-                    # in the JSON body. Attempt it once before raising.
-                    try:
-                        fallback_body = clean_dict({"jql": jql, "fields": fields, "startAt": next_start, "maxResults": max_results})
-                        logger.debug("PAGED FALLBACK BODY -> %s", fallback_body)
-                        resp = requests.post(url, auth=auth, headers=headers, json=fallback_body)
-                        resp.raise_for_status()
-                    except Exception:
-                        # Give up and surface the original exception
-                        raise ex
-
-                page_data = resp.json()
-                page_issues = page_data.get("issues") or []
-                if not page_issues:
-                    logger.info("Stopping pagination: no issues in page")
-                    break
-                # Yield the list of issues for this page
-                yield page_issues
-
-                fetched = len(page_issues)
-                page_total = page_data.get("total", total)
-
-                # Update pagination state based on response
-                # Check isLast flag first - if true, we're done
-                is_last = page_data.get("isLast", False)
-                if is_last:
-                    logger.info("Stopping pagination: isLast=true")
-                    break
-
-                next_page_token = page_data.get("nextPageToken")
-                if next_page_token:
-                    logger.info(f"Pagination: fetched page with {fetched} issues, nextPageToken={next_page_token}")
-                else:
-                    # Traditional pagination
-                    page_start_at = int(page_data.get("startAt", next_start))
-                    next_start = page_start_at + fetched
-                    logger.info(f"Pagination: fetched page with {fetched} issues, startAt={page_start_at}, total={page_total}, next_start={next_start}")
-                    if next_start >= int(page_total):
-                        logger.info(f"Stopping pagination: next_start ({next_start}) >= total ({page_total})")
-                        break
-            
-            # Break out of outer loop after pagination is complete
-            break
     else:
-        # Non-search endpoints use standard GET with query params
-        while True:
-            try:
-                response = requests.get(url, auth=auth, headers=headers, params=params)
-            except requests.HTTPError as ex:
-                resp = getattr(ex, "response", None)
-                resp_text = resp.text if resp is not None else "<no response body>"
-                status = resp.status_code if resp is not None else "<no status>"
-                print("[jira] GET params:", params)
-                print("[jira] response status:", status)
-                print("[jira] response body:", resp_text)
-                raise
+        # GET-based pagination for other endpoints
+        # Uses traditional startAt/maxResults pagination
 
+        start_at = 0
+        max_results = page_size
+
+        while True:
+            # Update pagination params
+            params["startAt"] = start_at
+            params["maxResults"] = max_results
+
+            # Make request
+            response = requests.get(url, auth=auth, headers=headers, params=params)
+            response.raise_for_status()
             data = response.json()
+
+            # Extract current page
             current_page = data.pop(data_path) if data_path else data
             if not current_page:
                 break
+
             yield current_page
+
+            # Check if more pages exist
+            total = data.get("total")
+            if total is None:
+                break
+
+            start_at += len(current_page) if isinstance(current_page, list) else 1
+            if start_at >= total:
+                break
