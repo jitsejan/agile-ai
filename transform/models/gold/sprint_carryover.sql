@@ -2,7 +2,9 @@
 -- Helps identify estimation issues and scope creep
 -- Filtered to board_id = 70 (Data Team Board) sprints
 with board_70_sprints as (
-    select distinct sprint_name
+    select
+        sprint_name,
+        sprint_number
     from {{ ref('sprints') }}
     where board_id = 70
 ),
@@ -43,7 +45,11 @@ select
     sc.changed_by,
     sc.from_sprint,
     sc.to_sprint,
+    from_s.sprint_number as from_sprint_number,
+    to_s.sprint_number as to_sprint_number,
     count(*) over (partition by sc.issue_id) as times_moved
 from issue_sprint_changes sc
 left join issue_details id on sc.issue_id = id.issue_id
-order by sc.changed_at desc
+left join board_70_sprints from_s on sc.from_sprint = from_s.sprint_name
+left join board_70_sprints to_s on sc.to_sprint = to_s.sprint_name
+order by from_s.sprint_number desc, sc.changed_at desc

@@ -1,5 +1,6 @@
 ---
 title: Jira Analytics Dashboard
+max_width: 1920px
 ---
 
 # 📊 Executive Overview
@@ -71,28 +72,35 @@ with recent_sprints as (
     issues_completed,
     round(completion_ratio * 100, 1) as completion_pct
   from motherduck.sprint_velocity
-  order by start_date desc
+  order by end_date DESC
   limit case when '${inputs.sprint_count.value}' = 'all' then 1000 else cast('${inputs.sprint_count.value}' as integer) end
 )
 select * from recent_sprints
 order by start_date asc;
 ```
 
-<LineChart
-  data={sprint_trend}
-  x=sprint_name
-  y=issues_completed
-  yAxisTitle="Issues"
-  title="Sprint Completion Trend"
-/>
-
-<BarChart
-  data={sprint_trend}
-  x=sprint_name
-  y={['issues_committed', 'issues_completed']}
-  swapXY=true
-  title="Committed vs Completed by Sprint"
-/>
+<Grid cols=2>
+  <div>
+    <LineChart
+      data={sprint_trend}
+      x=sprint_name
+      y=issues_completed
+      yAxisTitle="Issues"
+      title="Sprint Completion Trend"
+      sort=false
+    />
+  </div>
+  <div>
+    <BarChart
+      data={sprint_trend}
+      x=sprint_name
+      y={['issues_committed', 'issues_completed']}
+      swapXY=true
+      title="Committed vs Completed by Sprint"
+      sort=false
+    />
+  </div>
+</Grid>
 
 ---
 
@@ -139,35 +147,47 @@ order by issues_assigned desc;
 ```
 
 {#if inputs.sprint_filter === 'current_sprint'}
-<BarChart
-  data={team_perf_sprint}
-  x=assignee
-  y=issues_completed
-  swapXY=true
-  title="Issues Completed by Team Member (Current Sprint: {current_sprint_id[0].sprint_name})"
-/>
-
-<DataTable data={team_perf_sprint} rows=10>
-  <Column id=assignee/>
-  <Column id=issues_assigned fmt='#,##0'/>
-  <Column id=issues_completed fmt='#,##0'/>
-  <Column id=completion_pct fmt='0.0"%"' contentType=colorscale scaleColor=green/>
-</DataTable>
+<Grid cols=2>
+  <div>
+    <BarChart
+      data={team_perf_sprint}
+      x=assignee
+      y=issues_completed
+      swapXY=true
+      title="Issues Completed (Current Sprint: {current_sprint_id[0].sprint_name})"
+    />
+  </div>
+  <div>
+    ### Team Member Details
+    <DataTable data={team_perf_sprint} rows=10>
+      <Column id=assignee/>
+      <Column id=issues_assigned fmt='#,##0'/>
+      <Column id=issues_completed fmt='#,##0'/>
+      <Column id=completion_pct fmt='0.0"%"' contentType=colorscale scaleColor=green/>
+    </DataTable>
+  </div>
+</Grid>
 {:else}
-<BarChart
-  data={team_perf}
-  x=assignee
-  y=issues_completed
-  swapXY=true
-  title="Issues Completed by Team Member (All Time)"
-/>
-
-<DataTable data={team_perf} rows=10>
-  <Column id=assignee/>
-  <Column id=issues_assigned fmt='#,##0'/>
-  <Column id=issues_completed fmt='#,##0'/>
-  <Column id=completion_pct fmt='0.0"%"' contentType=colorscale scaleColor=green/>
-</DataTable>
+<Grid cols=2>
+  <div>
+    <BarChart
+      data={team_perf}
+      x=assignee
+      y=issues_completed
+      swapXY=true
+      title="Issues Completed by Team Member (All Time)"
+    />
+  </div>
+  <div>
+    ### Team Member Details
+    <DataTable data={team_perf} rows=10>
+      <Column id=assignee/>
+      <Column id=issues_assigned fmt='#,##0'/>
+      <Column id=issues_completed fmt='#,##0'/>
+      <Column id=completion_pct fmt='0.0"%"' contentType=colorscale scaleColor=green/>
+    </DataTable>
+  </div>
+</Grid>
 {/if}
 
 ---
@@ -189,56 +209,37 @@ group by 1
 order by min(days_in_status);
 ```
 
-<BarChart
-  data={aging_summary}
-  x=age_bucket
-  y=ticket_count
-  title="Tickets by Age"
-/>
-
 ```sql top_aging
 select
-  '[' || issue_key || '](https://validis.atlassian.net/browse/' || issue_key || ')' as issue_link,
-  assignee,
-  status,
-  days_in_status
-from motherduck.ticket_aging
-order by days_in_status desc
+  t.issue_key,
+  c.jira_base_url || '/browse/' || t.issue_key as issue_url,
+  t.assignee,
+  t.status,
+  t.days_in_status
+from motherduck.ticket_aging t
+left join motherduck.jira_config c
+  on split_part(t.issue_key, '-', 1) = c.project_key
+order by t.days_in_status desc
 limit 10;
 ```
 
-### Top 10 Longest Running Tickets
-
-<DataTable data={top_aging}>
-  <Column id=issue_link title="Issue Key" contentType=link/>
-  <Column id=assignee/>
-  <Column id=status/>
-  <Column id=days_in_status fmt='#,##0' contentType=colorscale scaleColor=red/>
-</DataTable>
-
----
-
-## 🔗 Quick Links
-
-<Grid cols=3>
-  <a href="/sprints">
-    <div style="padding: 20px; background: #f0f9ff; border-radius: 8px; text-align: center;">
-      <h3>📈 Sprint Analytics</h3>
-      <p>Deep dive into sprint performance</p>
-    </div>
-  </a>
-
-  <a href="/team">
-    <div style="padding: 20px; background: #f0fdf4; border-radius: 8px; text-align: center;">
-      <h3>👥 Team Performance</h3>
-      <p>Individual and team metrics</p>
-    </div>
-  </a>
-
-  <a href="/tickets">
-    <div style="padding: 20px; background: #fef3c7; border-radius: 8px; text-align: center;">
-      <h3>🎫 Ticket Analysis</h3>
-      <p>Detailed ticket insights</p>
-    </div>
-  </a>
+<Grid cols=2>
+  <div>
+    <BarChart
+      data={aging_summary}
+      x=age_bucket
+      y=ticket_count
+      title="Tickets by Age"
+    />
+  </div>
+  <div>
+    ### Top 10 Longest Running Tickets
+    <DataTable data={top_aging}>
+      <Column id=issue_url title="Issue Key" contentType=link linkLabel=issue_key openInNewTab=true/>
+      <Column id=assignee/>
+      <Column id=status/>
+      <Column id=days_in_status fmt='#,##0' contentType=colorscale scaleColor=red/>
+    </DataTable>
+  </div>
 </Grid>
+

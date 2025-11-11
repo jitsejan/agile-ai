@@ -1,5 +1,6 @@
 ---
 title: Ticket Analysis
+max_width: 1920px
 ---
 
 # 🎫 Ticket Insights & Aging
@@ -50,7 +51,7 @@ from motherduck.ticket_aging;
 
 ---
 
-## 📊 Age Distribution
+## 📊 Distribution & Breakdown
 
 ```sql age_buckets
 select
@@ -69,45 +70,16 @@ group by 1
 order by min(days_in_status);
 ```
 
-<BarChart
-  data={age_buckets}
-  x=age_bucket
-  y=ticket_count
-  title="Tickets by Age Category"
-/>
-
-<DataTable data={age_buckets}>
-  <Column id=age_bucket/>
-  <Column id=ticket_count fmt='#,##0'/>
-  <Column id=avg_days fmt='0.0'/>
-  <Column id=pct_of_total fmt='0.0"%"' contentType=colorscale scaleColor=orange/>
-</DataTable>
-
----
-
-## 🔴 Critical Tickets (>90 days)
-
-```sql critical_tickets
+```sql status_breakdown
 select
-  '[' || issue_key || '](https://validis.atlassian.net/browse/' || issue_key || ')' as issue_link,
-  assignee,
   status,
-  days_in_status
+  count(*) as ticket_count,
+  round(avg(days_in_status), 1) as avg_age,
+  round(100.0 * count(*) / sum(count(*)) over (), 1) as pct_of_total
 from motherduck.ticket_aging
-where days_in_status > 90
-order by days_in_status desc;
+group by status
+order by ticket_count desc;
 ```
-
-<DataTable data={critical_tickets} search=true>
-  <Column id=issue_link title="Issue Key" contentType=link/>
-  <Column id=assignee/>
-  <Column id=status/>
-  <Column id=days_in_status fmt='#,##0' contentType=colorscale scaleColor=red/>
-</DataTable>
-
----
-
-## 👤 Aging by Assignee
 
 ```sql aging_by_assignee
 select
@@ -121,6 +93,42 @@ where assignee is not null
 group by assignee
 order by avg_age desc;
 ```
+
+<Grid cols=2>
+  <div>
+    <BarChart
+      data={age_buckets}
+      x=age_bucket
+      y=ticket_count
+      title="Tickets by Age Category"
+    />
+    <DataTable data={age_buckets}>
+      <Column id=age_bucket/>
+      <Column id=ticket_count fmt='#,##0'/>
+      <Column id=avg_days fmt='0.0'/>
+      <Column id=pct_of_total fmt='0.0"%"' contentType=colorscale scaleColor=orange/>
+    </DataTable>
+  </div>
+  <div>
+    <BarChart
+      data={status_breakdown}
+      x=status
+      y=ticket_count
+      swapXY=true
+      title="Tickets by Status"
+    />
+    <DataTable data={status_breakdown}>
+      <Column id=status/>
+      <Column id=ticket_count fmt='#,##0'/>
+      <Column id=avg_age fmt='0.0'/>
+      <Column id=pct_of_total fmt='0.0"%"'/>
+    </DataTable>
+  </div>
+</Grid>
+
+---
+
+## 👤 Aging by Assignee
 
 <BarChart
   data={aging_by_assignee}
@@ -140,59 +148,61 @@ order by avg_age desc;
 
 ---
 
-## 📍 Status Breakdown
+## 🔴 Attention Required
 
-```sql status_breakdown
+```sql critical_tickets
 select
-  status,
-  count(*) as ticket_count,
-  round(avg(days_in_status), 1) as avg_age,
-  round(100.0 * count(*) / sum(count(*)) over (), 1) as pct_of_total
-from motherduck.ticket_aging
-group by status
-order by ticket_count desc;
+  t.issue_key,
+  c.jira_base_url || '/browse/' || t.issue_key as issue_url,
+  t.assignee,
+  t.status,
+  t.days_in_status
+from motherduck.ticket_aging t
+left join motherduck.jira_config c
+  on split_part(t.issue_key, '-', 1) = c.project_key
+where t.days_in_status > 90
+order by t.days_in_status desc;
 ```
-
-<BarChart
-  data={status_breakdown}
-  x=status
-  y=ticket_count
-  swapXY=true
-  title="Tickets by Status"
-/>
-
-<DataTable data={status_breakdown}>
-  <Column id=status/>
-  <Column id=ticket_count fmt='#,##0'/>
-  <Column id=avg_age fmt='0.0'/>
-  <Column id=pct_of_total fmt='0.0"%"'/>
-</DataTable>
-
----
-
-## 🔍 Top 20 Oldest Tickets
 
 ```sql oldest_tickets
 select
-  '[' || issue_key || '](https://validis.atlassian.net/browse/' || issue_key || ')' as issue_link,
-  assignee,
-  status,
-  days_in_status,
+  t.issue_key,
+  c.jira_base_url || '/browse/' || t.issue_key as issue_url,
+  t.assignee,
+  t.status,
+  t.days_in_status,
   case
-    when days_in_status > 180 then 'Critical'
-    when days_in_status > 90 then 'High'
-    when days_in_status > 30 then 'Medium'
+    when t.days_in_status > 180 then 'Critical'
+    when t.days_in_status > 90 then 'High'
+    when t.days_in_status > 30 then 'Medium'
     else 'Low'
   end as priority
-from motherduck.ticket_aging
-order by days_in_status desc
+from motherduck.ticket_aging t
+left join motherduck.jira_config c
+  on split_part(t.issue_key, '-', 1) = c.project_key
+order by t.days_in_status desc
 limit 20;
 ```
 
-<DataTable data={oldest_tickets}>
-  <Column id=issue_link title="Issue Key" contentType=link/>
-  <Column id=assignee/>
-  <Column id=status/>
-  <Column id=days_in_status fmt='#,##0' contentType=colorscale scaleColor=red/>
-  <Column id=priority/>
-</DataTable>
+<Grid cols=2>
+  <div>
+    ### Critical Tickets (>90 days)
+    <DataTable data={critical_tickets} search=true rows=10>
+      <Column id=issue_url title="Issue Key" contentType=link linkLabel=issue_key openInNewTab=true/>
+      <Column id=assignee/>
+      <Column id=status/>
+      <Column id=days_in_status fmt='#,##0' contentType=colorscale scaleColor=red/>
+    </DataTable>
+  </div>
+  <div>
+    ### Top 20 Oldest Tickets
+    <DataTable data={oldest_tickets} rows=10>
+      <Column id=issue_url title="Issue Key" contentType=link linkLabel=issue_key openInNewTab=true/>
+      <Column id=assignee/>
+      <Column id=status/>
+      <Column id=days_in_status fmt='#,##0' contentType=colorscale scaleColor=red/>
+      <Column id=priority/>
+    </DataTable>
+  </div>
+</Grid>
+

@@ -4,6 +4,7 @@ with sprint_issues as (
     select
         s.sprint_id,
         s.sprint_name,
+        s.sprint_number,
         s.board_id,
         s.start_date,
         s.end_date,
@@ -20,6 +21,7 @@ with sprint_issues as (
 select
     sprint_id,
     sprint_name,
+    sprint_number,
     board_id,
     start_date,
     end_date,
@@ -27,5 +29,5 @@ select
     coalesce(sum(completed_flag), 0) as issues_completed,
     round(coalesce(sum(completed_flag), 0) * 1.0 / nullif(count(issue_id), 0), 2) as completion_ratio
 from sprint_issues
-group by 1,2,3,4,5
-order by start_date desc
+group by 1,2,3,4,5,6
+order by sprint_number desc

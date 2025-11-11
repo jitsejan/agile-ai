@@ -1,5 +1,6 @@
 ---
 title: Team Performance
+max_width: 1920px
 ---
 
 # 👥 Team Performance Metrics
@@ -59,16 +60,6 @@ where assignee is not null;
 
 ## 📊 Individual Performance
 
-<BarChart
-  data={user_insights}
-  x=assignee
-  y={['issues_assigned', 'issues_completed']}
-  swapXY=true
-  title="Workload vs Completion by Team Member"
-/>
-
-### Completion Rate Comparison
-
 ```sql completion_rates
 select
   assignee,
@@ -79,20 +70,6 @@ from motherduck.user_insights
 where assignee is not null
 order by completion_rate desc;
 ```
-
-<BarChart
-  data={completion_rates}
-  x=assignee
-  y=completion_rate
-  yFmt='0"%"'
-  swapXY=true
-  title="Completion Rate by Team Member"
-  colorPalette={['#16a34a', '#84cc16', '#eab308', '#f97316', '#dc2626']}
-/>
-
----
-
-## 🎯 Workload Distribution
 
 ```sql workload_buckets
 select
@@ -110,26 +87,51 @@ group by 1
 order by min(issues_assigned);
 ```
 
-<BarChart
-  data={workload_buckets}
-  x=workload_bucket
-  y=team_members
-  title="Team Members by Workload"
-/>
+<Grid cols=2>
+  <div>
+    <BarChart
+      data={user_insights}
+      x=assignee
+      y={['issues_assigned', 'issues_completed']}
+      swapXY=true
+      title="Workload vs Completion"
+    />
+  </div>
+  <div>
+    <BarChart
+      data={completion_rates}
+      x=assignee
+      y=completion_rate
+      yFmt='0"%"'
+      swapXY=true
+      title="Completion Rate"
+      colorPalette={['#16a34a', '#84cc16', '#eab308', '#f97316', '#dc2626']}
+    />
+  </div>
+</Grid>
+
+<Grid cols=2>
+  <div>
+    <BarChart
+      data={workload_buckets}
+      x=workload_bucket
+      y=team_members
+      title="Team Members by Workload"
+    />
+  </div>
+  <div>
+    ### Team Performance Details
+    <DataTable data={user_insights} search=true rows=10>
+      <Column id=assignee/>
+      <Column id=issues_assigned fmt='#,##0' contentType=colorscale scaleColor=blue/>
+      <Column id=issues_completed fmt='#,##0' contentType=colorscale scaleColor=green/>
+    </DataTable>
+  </div>
+</Grid>
 
 ---
 
-## 📋 Detailed Team Performance
-
-<DataTable data={user_insights} search=true>
-  <Column id=assignee/>
-  <Column id=issues_assigned fmt='#,##0' contentType=colorscale scaleColor=blue/>
-  <Column id=issues_completed fmt='#,##0' contentType=colorscale scaleColor=green/>
-</DataTable>
-
----
-
-## 🏆 Top Performers
+## 🏆 Performance Highlights
 
 ```sql top_performers
 select
@@ -141,16 +143,6 @@ where assignee is not null
 order by issues_completed desc
 limit 5;
 ```
-
-<DataTable data={top_performers}>
-  <Column id=assignee/>
-  <Column id=issues_completed fmt='#,##0'/>
-  <Column id=completion_rate fmt='0.0"%"' contentType=colorscale scaleColor=green/>
-</DataTable>
-
----
-
-## 🔴 Attention Needed
 
 ```sql needs_attention
 select
@@ -165,10 +157,23 @@ where assignee is not null
 order by backlog desc;
 ```
 
-<DataTable data={needs_attention}>
-  <Column id=assignee/>
-  <Column id=issues_assigned fmt='#,##0'/>
-  <Column id=issues_completed fmt='#,##0'/>
-  <Column id=backlog fmt='#,##0' contentType=colorscale scaleColor=red/>
-  <Column id=completion_rate fmt='0.0"%"'/>
-</DataTable>
+<Grid cols=2>
+  <div>
+    ### 🏆 Top Performers
+    <DataTable data={top_performers}>
+      <Column id=assignee/>
+      <Column id=issues_completed fmt='#,##0'/>
+      <Column id=completion_rate fmt='0.0"%"' contentType=colorscale scaleColor=green/>
+    </DataTable>
+  </div>
+  <div>
+    ### 🔴 Attention Needed
+    <DataTable data={needs_attention}>
+      <Column id=assignee/>
+      <Column id=issues_assigned fmt='#,##0'/>
+      <Column id=issues_completed fmt='#,##0'/>
+      <Column id=backlog fmt='#,##0' contentType=colorscale scaleColor=red/>
+      <Column id=completion_rate fmt='0.0"%"'/>
+    </DataTable>
+  </div>
+</Grid>

@@ -1,5 +1,6 @@
 ---
 title: Sprint Analytics
+max_width: 1920px
 ---
 
 # 📈 Sprint Performance Analysis
@@ -7,19 +8,19 @@ title: Sprint Analytics
 ```sql sprint_perf
 select *
 from motherduck.sprint_performance
-order by start_date desc;
+order by start_date asc;
 ```
 
 ```sql sprint_vel
 select *
 from motherduck.sprint_velocity
-order by start_date desc;
+order by start_date asc;
 ```
 
 ```sql carryover
 select *
 from motherduck.sprint_carryover
-order by sprint_name desc;
+order by from_sprint_number desc, changed_at desc;
 ```
 
 ## Key Metrics
@@ -69,6 +70,7 @@ from motherduck.sprint_velocity;
   yAxisTitle="Issues"
   title="Sprint Velocity Over Time"
   markers=true
+  sort=false
 />
 
 <BarChart
@@ -77,6 +79,8 @@ from motherduck.sprint_velocity;
   y=completion_ratio
   yFmt='0%'
   title="Completion Rate by Sprint"
+  sort=false
+  swapXY=true
 />
 
 ---
@@ -85,14 +89,16 @@ from motherduck.sprint_velocity;
 
 ```sql carryover_by_sprint
 select
-  from_sprint as sprint_name,
-  count(distinct issue_id) as carryover_count,
-  count(distinct issue_key) as issues_moved,
-  sum(story_points) as total_story_points
-from motherduck.sprint_carryover
-where from_sprint is not null
-group by from_sprint
-order by carryover_count desc
+  c.from_sprint as sprint_name,
+  count(distinct c.issue_id) as carryover_count,
+  count(distinct c.issue_key) as issues_moved,
+  sum(c.story_points) as total_story_points,
+  min(s.start_date) as start_date
+from motherduck.sprint_carryover c
+left join motherduck.sprint_performance s on c.from_sprint = s.sprint_name
+where c.from_sprint is not null
+group by c.from_sprint
+order by start_date asc
 ```
 
 ```sql carryover_summary

@@ -5,6 +5,7 @@ with sprint_issues as (
     select
         s.sprint_id,
         s.sprint_name,
+        s.sprint_number,
         s.board_id,
         s.start_date,
         s.end_date,
@@ -33,6 +34,7 @@ with sprint_issues as (
 select
     sprint_id,
     sprint_name,
+    sprint_number,
     board_id,
     start_date,
     end_date,
@@ -50,5 +52,5 @@ select
     round(coalesce(sum(case when completed_flag = 1 then story_points end), 0) * 100.0 / nullif(sum(story_points), 0), 2) as points_completion_rate_pct,
     count(distinct assignee) as team_members_active
 from sprint_issues
-group by 1,2,3,4,5,6
-order by start_date desc
+group by 1,2,3,4,5,6,7
+order by sprint_number desc
