@@ -10,9 +10,7 @@ def main() -> None:
     can execute the pipeline by the name `jira_pipeline`.
     """
     pipeline = dlt.pipeline(
-        pipeline_name="jira_pipeline",
-        destination="duckdb",
-        dataset_name="jira",
+        pipeline_name="jira_pipeline"
     )
 
     load_info = pipeline.run(

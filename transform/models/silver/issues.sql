@@ -12,7 +12,8 @@ with base as (
         fields__reporter->>'displayName' as reporter,
         fields__issuetype->>'name' as issue_type,
         fields__labels as labels_raw,
-        fields__customfield_10020 as sprint_raw
+        fields__customfield_10020 as sprint_raw,
+        fields__customfield_10014 as fields__customfield_10014
     from {{ source('jira', 'issues') }}
 )
 select

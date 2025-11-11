@@ -1,0 +1,3 @@
+instance_name,project_key,jira_base_url
+company_a_primary,DT,https://company-a.atlassian.net
+company_b_primary,CORE,https://company-b.atlassian.net

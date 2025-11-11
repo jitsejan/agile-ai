@@ -1,8 +1,8 @@
 DEFAULT_ENDPOINTS = {
     "issues": {
         "data_path": None,
-    # Use the newer search/jql endpoint (expects POST). We will try a
-    # couple of payload shapes to be compatible with tenant expectations.
+    # Use the newer search/jql endpoint (expects POST).
+    # NOTE: This endpoint uses token-based pagination with a 100-page limit
     "api_path": "rest/api/3/search/jql",
         "params": {
             # Expanded default fields to include typical fields useful for
@@ -39,7 +39,7 @@ DEFAULT_ENDPOINTS = {
             "expand": ["changelog"],
             # Default JQL: query project DT and order by most recently created
             "jql": "project = DT ORDER BY created DESC",
-            "maxResults": 100,
+            # NOTE: Omitting maxResults allows proper pagination with isLast flag
         },
     },
 }

@@ -3,7 +3,5 @@ jira_duckdb:
   outputs:
     dev:
       type: duckdb
-      path: "{{ env_var('DBT_DUCKDB_PATH', 'jira_pipeline.duckdb') }}"
+      path: "md:agile_ai_db?motherduck_token={{ env_var('MOTHERDUCK_TOKEN') }}"
       threads: 1
-      schema: jira
-      database: jira_pipeline

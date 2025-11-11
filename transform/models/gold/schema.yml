@@ -1,0 +1,200 @@
+version: 2
+
+models:
+  - name: sprint_performance
+    description: Comprehensive sprint performance metrics including story points and velocity
+    columns:
+      - name: sprint_id
+        description: Unique sprint identifier
+        tests: [not_null]
+      - name: sprint_name
+        description: Sprint name
+      - name: start_date
+        description: Sprint start date
+      - name: end_date
+        description: Sprint end date
+      - name: sprint_state
+        description: Sprint state (active, closed, future)
+      - name: sprint_duration_days
+        description: Sprint duration in days
+      - name: issues_committed
+        description: Total issues committed to sprint
+      - name: issues_completed
+        description: Issues completed
+      - name: issues_completed_in_sprint
+        description: Issues completed within the sprint timeframe
+      - name: issues_remaining
+        description: Issues not yet completed
+      - name: points_committed
+        description: Story points committed to sprint
+      - name: points_completed
+        description: Story points completed
+      - name: points_completed_in_sprint
+        description: Story points completed within sprint timeframe
+      - name: points_remaining
+        description: Story points not yet completed
+      - name: completion_rate_pct
+        description: Percentage of issues completed
+      - name: points_completion_rate_pct
+        description: Percentage of story points completed
+      - name: team_members_active
+        description: Number of team members active in sprint
+
+  - name: team_member_performance
+    description: Individual team member performance across sprints
+    columns:
+      - name: sprint_id
+        description: Unique sprint identifier
+        tests: [not_null]
+      - name: sprint_name
+        description: Sprint name
+      - name: start_date
+        description: Sprint start date
+      - name: end_date
+        description: Sprint end date
+      - name: assignee
+        description: Team member name
+      - name: issues_assigned
+        description: Issues assigned to team member
+      - name: issues_completed
+        description: Issues completed by team member
+      - name: issues_completed_in_sprint
+        description: Issues completed within sprint
+      - name: points_assigned
+        description: Story points assigned
+      - name: points_completed
+        description: Story points completed
+      - name: points_completed_in_sprint
+        description: Story points completed in sprint
+      - name: completion_rate_pct
+        description: Completion rate percentage
+      - name: avg_days_to_complete
+        description: Average days to complete tickets
+
+  - name: sprint_carryover
+    description: Tracks tickets that moved between sprints
+    columns:
+      - name: issue_id
+        description: Issue identifier
+        tests: [not_null]
+      - name: issue_key
+        description: Issue key (e.g., PROJ-123)
+      - name: summary
+        description: Issue summary
+      - name: status
+        description: Current issue status
+      - name: assignee
+        description: Current assignee
+      - name: story_points
+        description: Story points
+      - name: changed_at
+        description: When the sprint change occurred
+      - name: changed_by
+        description: Who changed the sprint
+      - name: from_sprint
+        description: Original sprint
+      - name: to_sprint
+        description: New sprint
+      - name: times_moved
+        description: Number of times ticket has moved
+
+  - name: personal_activity
+    description: Daily activity tracking per user
+    columns:
+      - name: user_name
+        description: User name
+      - name: activity_date
+        description: Activity date
+      - name: comments_made
+        description: Comments made on this day
+      - name: issues_commented_on
+        description: Issues commented on
+      - name: updates_made
+        description: Updates made
+      - name: issues_updated
+        description: Issues updated
+      - name: total_activities
+        description: Total activities (comments + updates)
+      - name: days_since_activity
+        description: Days since this activity occurred
+      - name: inactive_day
+        description: Flag for inactive days
+
+  - name: personal_ticket_status
+    description: Personal ticket status with health alerts
+    columns:
+      - name: assignee
+        description: Assigned team member
+      - name: issue_id
+        description: Issue identifier
+        tests: [not_null]
+      - name: issue_key
+        description: Issue key
+      - name: summary
+        description: Issue summary
+      - name: status
+        description: Current status
+      - name: status_category
+        description: Status category
+      - name: priority
+        description: Priority
+      - name: issue_type
+        description: Issue type
+      - name: created_at
+        description: Created timestamp
+      - name: updated_at
+        description: Last updated timestamp
+      - name: completed_at
+        description: Completed timestamp
+      - name: story_points
+        description: Story points
+      - name: days_since_last_update
+        description: Days since last update
+      - name: age_days
+        description: Age in days
+      - name: health_status
+        description: Health status (Active, At Risk, Stale, Completed)
+      - name: comment_count
+        description: Number of comments
+      - name: last_comment_at
+        description: Last comment timestamp
+      - name: days_since_last_comment
+        description: Days since last comment
+      - name: status_change_count
+        description: Number of status changes
+      - name: last_status_change_at
+        description: Last status change timestamp
+      - name: days_since_status_change
+        description: Days since status change
+
+  - name: sprint_velocity
+    description: Sprint velocity per sprint (basic metrics)
+    columns:
+      - name: sprint_id
+        description: Sprint identifier
+        tests: [not_null]
+
+  - name: user_insights
+    description: User insights (assigned, resolved)
+    columns:
+      - name: assignee
+        description: Assignee name
+        tests: 
+          - not_null:
+              config:
+                severity: warn
+      - name: issues_assigned
+        description: Issues assigned
+      - name: issues_completed
+        description: Issues completed
+
+  - name: ticket_aging
+    description: Aging open tickets
+    columns:
+      - name: issue_id
+        description: Issue identifier
+        tests: [not_null]
+      - name: issue_key
+        description: Issue key
+      - name: days_in_status
+        description: Days in current status

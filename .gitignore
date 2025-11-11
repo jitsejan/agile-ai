@@ -38,3 +38,7 @@ logs/dbt.log
 transform/logs
 transform/target
 transform/.user.yml
+transform/seeds/jira_config.csv
+dashboards/.evidence/customization/.profile.json
+dashboards/pages/logs
+dashboards/sources/motherduck/connection.yaml
